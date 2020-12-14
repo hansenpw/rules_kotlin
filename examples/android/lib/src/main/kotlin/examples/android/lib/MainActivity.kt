@@ -14,7 +14,7 @@ class MainActivity : Activity() {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.activity_main)
 
-    // Ensure Kotlin Android Extension plugin has run and generated code correctly
+    // Ensure Kotlin Android Extensions plugin has run and generated code correctly.
     message.text = "hello"
 
     AlertDialog.Builder(this)
