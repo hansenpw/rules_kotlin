@@ -11,6 +11,21 @@ kt_compiler_plugin(
     ],
 )
 
+kt_compiler_plugin(
+    name = "android_ext_plugin",
+    compile_phase = True,
+    id = "org.jetbrains.kotlin.android",
+    options = {
+        "package": "examples.android.lib",
+        "variant": "main;lib/src/main/res",
+        "experimental": "true"
+    },
+    stubs_phase = True,
+    deps = [
+        "@com_github_jetbrains_kotlin//:android-extensions-compiler",
+    ],
+)
+
 java_plugin(
     name = "autovalue",
     generates_api = 1,
@@ -26,12 +41,15 @@ kt_android_library(
     plugins = [
         ":serialization_plugin",
         ":autovalue",
+        ":android_ext_plugin"
     ],
+    resource_files = glob(["**/res/**"]),
     tags = ["trace"],
     visibility = ["//visibility:public"],
     deps = [
         "@maven//:androidx_appcompat_appcompat",
         "@maven//:org_jetbrains_kotlinx_kotlinx_serialization_runtime",
-        "@maven//:com_google_auto_value_auto_value_annotations"
+        "@maven//:com_google_auto_value_auto_value_annotations",
+        "@maven//:org_jetbrains_kotlin_kotlin_android_extensions_runtime"
     ],
 )
