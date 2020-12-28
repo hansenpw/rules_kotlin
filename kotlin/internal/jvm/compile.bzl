@@ -25,6 +25,11 @@ load(
     _plugin_mappers = "mappers",
 )
 load(
+    "//kotlin/internal:opts.bzl",
+    _KotlincOptions = "KotlincOptions",
+    _JavacOptions = "JavacOptions",
+)
+load(
     "//kotlin/internal:compiler_plugins.bzl",
     _plugins_to_classpaths = "plugins_to_classpaths",
     _plugins_to_options = "plugins_to_options",
@@ -162,7 +167,7 @@ def _adjust_resources_path(path, resource_strip_prefix):
         return _adjust_resources_path_by_default_prefixes(path)
 
 def _merge_kt_jvm_info(module_name, providers):
-    language_versions = {p.language_version: True for p in providers if p.language_verison}
+    language_versions = {p.language_version: True for p in providers if p.language_version}
     if len(language_versions) != 1:
         fail("Conflicting kt language versions: %s" % language_versions)
     return _KtJvmInfo(
@@ -174,9 +179,13 @@ def _merge_kt_jvm_info(module_name, providers):
         ]),
     )
 
-def _kotlinc_options_provider_to_flags(opts):
+def _kotlinc_options_provider_to_flags(opts, language_version):
     if not opts:
         return ""
+    
+    # Validate the compiler opts before they are mapped over to flags
+    _validate_kotlinc_options(opts, language_version)
+
     flags = []
     if opts.warn == "off":
         flags.append("-nowarn")
@@ -190,15 +199,31 @@ def _kotlinc_options_provider_to_flags(opts):
         flags.append("-Xallow-jvm-ir-dependencies")
     if opts.x_skip_prerelease_check:
         flags.append("-Xskip-prerelease-check")
+    if opts.x_inline_classes:
+        flags.append("-Xinline-classes")
+    if opts.x_allow_result_return_type:
+        flags.append("-Xallow-result-return-type")
     if opts.include_stdlibs == "stdlib":
         flags.append("-no-reflect")
     elif opts.include_stdlibs == "none":
         flags.append("-no-stdlib")
+    if opts.x_jvm_default == "enable":
+        flags.append("-Xjvm-default=enable")
+    elif opts.x_jvm_default == "compatibility":
+        flags.append("-Xjvm-default=compatibility")
+    if opts.x_no_optimized_callable_references:
+        flags.append("-Xno-optimized-callable-references")
     return flags
+
+def _validate_kotlinc_options(opts, language_version):
+    if opts.x_allow_jvm_ir_dependencies and language_version < "1.4":
+        fail("The x_allow_jvm_ir_dependencies flag is only avaliable in Kotlin version 1.4 or greater")
+    pass
 
 def _javac_options_provider_to_flags(opts):
     if not opts:
         return ""
+
     flags = []
     if opts.warn == "off":
         flags.append("-nowarn")
@@ -343,8 +368,12 @@ def _run_kt_builder_action(
     for f, path in outputs.items():
         args.add("--" + f, path)
 
-    args.add_all("--kotlin_passthrough_flags", _kotlinc_options_provider_to_flags(toolchains.kt.kotlinc_options))
-    args.add_all("--javacopts", _javac_options_provider_to_flags(toolchains.kt.javac_options))
+    # Unwrap kotlinc_options/javac_options options or default to the ones being provided by the toolchain
+    kotlinc_options = ctx.attr.kotlinc_opts[_KotlincOptions] if ctx.attr.kotlinc_opts else toolchains.kt.kotlinc_options
+    javac_options = ctx.attr.javac_opts[_JavacOptions] if ctx.attr.javac_opts else toolchains.kt.javac_options
+    args.add_all("--kotlin_passthrough_flags", _kotlinc_options_provider_to_flags(kotlinc_options, toolchains.kt.language_version))
+    args.add_all("--javacopts", _javac_options_provider_to_flags(javac_options))
+    
     # TODO: Implement Strict Kotlin deps: (https://github.com/bazelbuild/rules_kotlin/issues/419)
     # This flag is currently unused by the builder but required for the unused_deps tool
     args.add_all("--direct_dependencies", _java_infos_to_compile_jars(compile_deps.deps))
@@ -605,7 +634,7 @@ def _run_kt_java_builder_actions(ctx, rule_kind, toolchains, srcs, generated_src
             compile_deps = compile_deps,
             annotation_processors = annotation_processors,
             transitive_runtime_jars = transitive_runtime_jars,
-            plugins = [],
+            plugins = plugins,
             outputs = {
                 "generated_java_srcjar": kapt_generated_src_jar,
                 "kapt_generated_stub_jar": kapt_generated_stub_jar,

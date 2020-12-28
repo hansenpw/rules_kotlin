@@ -57,6 +57,35 @@ _KOPTS = {
         ),
         type = attr.bool,
     ),
+     "x_inline_classes": struct(
+        args = dict(
+            default = False,
+            doc = "Enable experimental inline classes",
+        ),
+        type = attr.bool,
+    ),
+    "x_allow_result_return_type": struct(
+        args = dict(
+            default = False,
+            doc = "Enable kotlin.Result as a return type",
+        ),
+        type = attr.bool,
+    ),
+    "x_jvm_default": struct(
+        args = dict(
+            default = "off",
+            doc = "Specifies that a JVM default method should be generated for non-abstract Kotlin interface member.",
+            values = ["off", "enable", "compatibility"],
+        ),
+        type = attr.string,
+    ),
+    "x_no_optimized_callable_references": struct(
+        args = dict(
+            default = False,
+            doc = "Do not use optimized callable reference superclasses. Available from 1.4.",
+        ),
+        type = attr.bool,
+    ),
 }
 
 KotlincOptions = provider(
