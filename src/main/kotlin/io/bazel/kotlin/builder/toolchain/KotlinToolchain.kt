@@ -45,23 +45,36 @@ class KotlinToolchain private constructor(
     "org.jetbrains.kotlin.kapt3"
   ),
   val jvmAbiGen: CompilerPlugin,
-  val skipCodeGen: CompilerPlugin
+  val skipCodeGen: CompilerPlugin,
+  val jdepsGen: CompilerPlugin
 ) {
 
   companion object {
+    // TODO(issue/432): Remove this gross hack and pass the file locations on the command line.
+    private var RULES_REPOSITORY_NAME =
+      System.getenv("TEST_WORKSPACE")?.takeIf { it.isNotBlank() }
+      ?: System.getenv("REPOSITORY_NAME")?.takeIf { it.isNotBlank() }
+   //   ?: System.getProperty("TEST_WORKSPACE")?.takeIf { it.isNotBlank() }
+      ?: error("Unable to determine rules_kotlin repository name.\nenv:${System.getenv()}\nproperties:${System.getProperties()}")
+
     private val DEFAULT_JVM_ABI_PATH = BazelRunFiles.resolveVerified(
       "external", "com_github_jetbrains_kotlin", "lib", "jvm-abi-gen.jar"
     ).toPath()
 
     private val COMPILER = BazelRunFiles.resolveVerified(
-      "io_bazel_rules_kotlin",
+      RULES_REPOSITORY_NAME,
       "src", "main", "kotlin", "io", "bazel", "kotlin", "compiler",
       "compiler.jar").toPath()
 
     private val SKIP_CODE_GEN_PLUGIN = BazelRunFiles.resolveVerified(
-      "io_bazel_rules_kotlin",
+      RULES_REPOSITORY_NAME,
       "src", "main", "kotlin",
       "skip-code-gen.jar").toPath()
+
+    private val JDEPS_GEN_PLUGIN = BazelRunFiles.resolveVerified(
+      RULES_REPOSITORY_NAME,
+      "src", "main", "kotlin",
+      "jdeps-gen.jar").toPath()
 
     internal val NO_ARGS = arrayOf<Any>()
 
@@ -93,6 +106,7 @@ class KotlinToolchain private constructor(
       }.verifiedPath()
 
       val skipCodeGenFile = SKIP_CODE_GEN_PLUGIN.verified().absoluteFile
+      val jdepsGenFile = JDEPS_GEN_PLUGIN.verified().absoluteFile
 
       val kotlinCompilerJar = BazelRunFiles.resolveVerified(
         "external", "com_github_jetbrains_kotlin", "lib", "kotlin-compiler.jar")
@@ -109,7 +123,8 @@ class KotlinToolchain private constructor(
             // (and a NoClassDef err) in the compiler extension interfaces.
             // This may cause issues in accepting user defined compiler plugins.
             jvmAbiGenFile.absoluteFile,
-            skipCodeGenFile
+            skipCodeGenFile,
+            jdepsGenFile
           )
         ),
         jvmAbiGen = CompilerPlugin(
@@ -117,7 +132,11 @@ class KotlinToolchain private constructor(
           "org.jetbrains.kotlin.jvm.abi"),
         skipCodeGen = CompilerPlugin(
           skipCodeGenFile.absolutePath,
-          "io.bazel.kotlin.plugin.SkipCodeGen")
+          "io.bazel.kotlin.plugin.SkipCodeGen"),
+        jdepsGen = CompilerPlugin(
+          jdepsGenFile.absolutePath,
+          "io.bazel.kotlin.plugin.jdeps.JDepsGen"
+        )
       )
     }
   }

@@ -68,6 +68,7 @@ def kt_js_library_impl(ctx):
     args.add("--kotlin_js_dir", out_dir.path)
     args.add("--kotlin_output_js_jar", ctx.outputs.jar)
     args.add("--kotlin_output_srcjar", ctx.outputs.srcjar)
+    args.add("--strict_kotlin_deps", "off")
 
     args.add_all("--kotlin_js_libraries", libraries, omit_if_empty = False)
     args.add_all("--sources", ctx.files.srcs)
@@ -90,6 +91,9 @@ def kt_js_library_impl(ctx):
         arguments = [args],
         progress_message = "Compiling Kotlin to JS %s { kt: %d }" % (ctx.label, len(ctx.files.srcs)),
         input_manifests = input_manifests,
+        env = {
+            "REPOSITORY_NAME": _utils.builder_workspace_name(ctx),
+        },
     )
 
     return [

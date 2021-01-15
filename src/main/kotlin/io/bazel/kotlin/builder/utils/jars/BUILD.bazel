@@ -1,4 +1,4 @@
-# Copyright 2018 The Bazel Authors. All rights reserved.
+# Copyright 2020 The Bazel Authors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,22 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+load("@rules_java//java:defs.bzl", "java_library")
+load("//src/main/kotlin:bootstrap.bzl", "kt_bootstrap_library")
 
-exports_files([
-    "empty.jar",
-    "empty.jdeps",
-])
-
-java_binary(
-    name = "jarjar_runner",
-    main_class = "org.pantsbuild.jarjar.Main",
-    visibility = ["//visibility:public"],
-    runtime_deps = [":jarjar.jar"],
-)
-
-java_import(
-    name = "android_sdk",
-    jars = ["@bazel_tools//tools/android:android_jar"],
-    neverlink = True,
-    visibility = ["//visibility:public"],
+kt_bootstrap_library(
+    name = "jars",
+    srcs = glob([
+        "*.kt",
+        "**/*.kt",
+    ]),
+    visibility = ["//src:__subpackages__"],
+    deps = [
+        "//src/main/protobuf:deps_java_proto",
+    ],
 )
